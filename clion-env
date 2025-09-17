@@ -1,0 +1,4 @@
+# for the correct selection of the compiler with version 10.3, to be able to use build inside of clion
+# and use the embedded debugger
+export PATH=/home/thomas/Applications/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux/gcc-arm-none-eabi-10.3-2021.10/bin:$PATH
+export ARM_NONE_EABI_GCC_PREFIX=/home/thomas/Applications/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-
