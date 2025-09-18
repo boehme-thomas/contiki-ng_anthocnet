@@ -46,7 +46,7 @@ def create_plots(path, every_two_minutes_list):
             alpha=0.3,
             label="Std Dev"
         )
-        #plt.fill_between(np.array(x_data)[mask], mean[mask] - std[mask], mean[mask] + std[mask], alpha=0.3, label="Std Dev")
+        plt.fill_between(np.array(x_data)[mask], mean[mask] - std[mask], mean[mask] + std[mask], alpha=0.3, label="Std Dev")
         plt.xlabel("Time (s)")
         plt.ylabel(ylabel)
         plt.title(title)
@@ -80,7 +80,7 @@ def create_plots(path, every_two_minutes_list):
         alpha=0.3,
         label="Std Dev"
     )
-    #plt.fill_between(x_data, mean - std, mean + std, alpha=0.3, label="Std Dev")
+    plt.fill_between(x_data, mean - std, mean + std, alpha=0.3, label="Std Dev")
     plt.xlabel("Time (s)")
     plt.ylabel("Ants per Packet")
     plt.title("Number of Ants Sent per Packet Over Time")
@@ -104,7 +104,7 @@ def create_boxplots(path, values):
     def seaborn_boxplot(data, labels, title, ylabel, filename):
         plt.figure(figsize=None)
         sns.boxplot(data=data, width=0.4)
-        if len(labels) > 3:
+        if len(labels) >= 3:
             plt.xticks(ticks=range(len(labels)), labels=labels, rotation=20)
         else:
             plt.xticks(ticks=range(len(labels)), labels=labels)
@@ -115,11 +115,23 @@ def create_boxplots(path, values):
         plt.savefig(os.path.join(box_path, filename), bbox_inches="tight")
         plt.close()
 
-    udp_packages = np.array([item[:2] for item in values])
+    udp_packages = np.array([item[0:2] for item in values])
     seaborn_boxplot(udp_packages, ["Sent", "Received"], "UDP Packets", "Numer Packets", "packages_sent_received.pdf")
 
-    seaborn_boxplot(np.array([item[2] for item in values]), ["Lost"], "UDP Packets", "Numer Packets", "packages_lost.pdf")
+    seaborn_boxplot(np.array([item[2] for item in values]), ["Lost"], "UDP Packets", "Numer Packets", "number_packages_lost.pdf")
+    seaborn_boxplot(np.array([item[3:5] for item in values]), ["Broadcast", "Unicast"],
+                    "Reactive Forward Ants", "Number of Ants", "number_rfa.pdf")
+    seaborn_boxplot(np.array([item[6:8] for item in values]), ["Broadcast", "Unicast"],
+                    "Forward Ants Ratio", "Number of Ants", "number_pfa.pdf")
+    seaborn_boxplot(np.array([item[9:13] for item in values]),
+                    ["Path Repair Ants", "Link Failure Notifications", "Warning Messages", "Backward Ants"],
+                    "Other Ants", "Number of Ants", "number_other_ants.pdf")
+    seaborn_boxplot(np.array([item[10] for item in values]), ["Link Failure Notifications"],
+                    "Link Failure Notifications", "Number of Ants", "number_link_failure_notifications.pdf")
+
+
     seaborn_boxplot(np.array([item[3:5] / item[13] * 100 for item in values]), ["Broadcast", "Unicast"], "Reactive Forward Ants Ratio", "Ratio to All Ants (\\%)", "rfa.pdf")
+    seaborn_boxplot(np.array([[item[3] / item[13] * 100, item[4] / item[13] * 100, item[10] / item [13] *100] for item in values]), ["RFA Broadcast", "RFA Unicast", "Link Failure Notifications"], "Ratios", "Ratio to All Ants (\\%)", "rfa_linkfailure.pdf")
     seaborn_boxplot(np.array([item[6:8] / item[13] * 100 for item in values]), ["Broadcast", "Unicast"], "Proactive Forward Ants Ratio", "Ratio to All Ants (\\%)", "pfa.pdf")
     seaborn_boxplot(np.array([item[9:13] / item[13] * 100 for item in values]), ["Path Repair Ants", "Link Failure Notifications", "Warning Messages", "Backward Ants"], "Ratios of Other Ants", "Ratio to All Ants (\\%)", "other_ants.pdf")
     seaborn_boxplot(np.array([item[10] / item[13] * 100 for item in values]), ["Link Failure Notifications"], "Link Failure Notifications Ratio", "Ratio to All Ants (\\%)", "link_failure_notifications.pdf")
@@ -131,6 +143,7 @@ def create_boxplots(path, values):
     seaborn_boxplot(np.array([item[18:] for item in values]), ["CPU", "LPM", "Deep LPM", "Listen", "Transmit", "Off"], "Energest", "Time (s)", "energest.pdf")
     seaborn_boxplot(np.array([item[21] for item in values]), ["Listen"], "Energest", "Time (s)", "energest_listen.pdf")
     seaborn_boxplot(np.array([item[22] for item in values]), ["Transmit"], "Energest", "Time (s)", "energest_transmit.pdf")
+    seaborn_boxplot(np.array([item[23] for item in values]), ["Off"], "Energest", "Time (s)", "energest_off.pdf")
 
     violin_path = os.path.join(path, "violinplots")
     os.makedirs(violin_path, exist_ok=True)
@@ -166,6 +179,7 @@ def create_boxplots(path, values):
 def compute_mean_variance_from_txt(path):
     values_every_two_minutes_per_run = []
     final_values = []
+    die_count = 0.0
     for file in os.listdir(path):
         if file.endswith('.txt'):
             print(f"Open file: {os.path.join(path, file)}")
@@ -175,6 +189,10 @@ def compute_mean_variance_from_txt(path):
             with (open(os.path.join(path, file), 'r') as f):
                 final = False
                 for line in f:
+
+                    if "Node will die" in line:
+                        die_count += 1.0
+
                     if "Final Results" in line:
                         final = True
 
@@ -258,6 +276,8 @@ def compute_mean_variance_from_txt(path):
                     values_every_two_minutes_per_run.append(copy.deepcopy(two_min_run))
                     final_values.append(copy.deepcopy(run))
 
+    die_count = die_count / max(1.0, len(final_values))
+    print(f"Avg die count: {die_count}")
     if final_values:
         print(f"finale_values: {[len(item) for item in final_values]}")
         print(f"every_two_minutes: {[len(item) for item in values_every_two_minutes_per_run]}")
